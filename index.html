@@ -1,0 +1,770 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, user-scalable=no, viewport-fit=cover">
+  <title>AR Tata Surya - UAS RVA (Revisi)</title>
+  <script src="./libs/aframe.min.js"></script>
+  <script src="./libs/aframe-ar.js"></script>
+  <style>
+    * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+    body { margin: 0; overflow: hidden; font-family: 'Segoe UI', sans-serif; }
+
+    /* ===== HEADER BRANDING KELOMPOK ===== */
+    #header {
+      position: fixed; top: 0; left: 0; width: 100%;
+      padding: calc(10px + env(safe-area-inset-top, 0px)) 14px 10px;
+      z-index: 999;
+      background: linear-gradient(180deg, rgba(10,15,40,0.9), rgba(10,15,40,0));
+      color: white; text-align: center; pointer-events: none;
+    }
+    #header h1 { margin: 0; font-size: 16px; letter-spacing: 0.5px; }
+    #header p { margin: 2px 0 0; font-size: 11px; opacity: 0.8; }
+
+    /* ===== TOMBOL AKSI KANAN ATAS (kuis + skala) ===== */
+    #topActions {
+      position: fixed; top: calc(10px + env(safe-area-inset-top, 0px)); right: 12px;
+      z-index: 1000; display: flex; gap: 8px; pointer-events: all;
+    }
+    #topActions button {
+      border: none; border-radius: 16px; padding: 7px 12px; font-size: 11px;
+      background: rgba(15,20,45,0.85); color: white; font-weight: 600;
+      display: flex; align-items: center; gap: 5px;
+    }
+    #topActions button:active { background: rgba(253,184,19,0.35); }
+
+    /* ===== TOMBOL ZOOM (kanan bawah) ===== */
+    #zoomControls {
+      position: fixed; right: 14px; bottom: 168px; z-index: 999;
+      display: flex; flex-direction: column; gap: 8px;
+    }
+    #zoomControls button {
+      width: 42px; height: 42px; border-radius: 50%; border: none;
+      background: rgba(15,20,45,0.85); color: white; font-size: 20px;
+      display: flex; align-items: center; justify-content: center;
+    }
+    #zoomControls button[aria-label="Reset zoom"] { font-size: 12px; }
+
+    /* ===== PANEL KONTROL WAKTU SIMULASI ===== */
+    #timeControls {
+      position: fixed; left: 14px; right: 14px; bottom: 106px; z-index: 999;
+      background: rgba(15,20,45,0.85); color: white; border-radius: 12px;
+      padding: 8px 12px; display: flex; align-items: center; gap: 10px;
+      font-size: 11px;
+    }
+    #timeControls button {
+      width: 30px; height: 30px; border-radius: 50%; border: none;
+      background: rgba(255,255,255,0.12); color: white; font-size: 13px;
+      flex: 0 0 auto; display: flex; align-items: center; justify-content: center;
+    }
+    #timeControls input[type="range"] { flex: 1; accent-color: #FDB813; }
+    #timeControls .speedLabel { min-width: 34px; text-align: right; opacity: 0.85; }
+
+    /* ===== MENU PILIH PLANET (scroll horizontal) ===== */
+    #planetMenu {
+      position: fixed; left: 0; right: 0; bottom: 62px; z-index: 999;
+      display: flex; gap: 8px; overflow-x: auto; padding: 8px 10px;
+      -webkit-overflow-scrolling: touch;
+    }
+    #planetMenu::-webkit-scrollbar { display: none; }
+    .planetChip {
+      flex: 0 0 auto; display: flex; align-items: center; gap: 6px;
+      background: rgba(15,20,45,0.85); color: white; border-radius: 20px;
+      padding: 7px 12px 7px 8px; font-size: 12px; white-space: nowrap;
+    }
+    .planetChip .dot { width: 14px; height: 14px; border-radius: 50%; display: inline-block; }
+
+    /* ===== PANEL INSTRUKSI AWAL ===== */
+    #instruction {
+      position: fixed; bottom: calc(8px + env(safe-area-inset-bottom, 0px)); left: 14px; right: 14px;
+      background: rgba(10,15,40,0.85); color: white;
+      padding: 6px 14px; border-radius: 10px; font-size: 11px;
+      z-index: 999; text-align: center;
+    }
+
+    /* ===== KARTU INFO PLANET ===== */
+    #infoCard {
+      position: fixed; bottom: 62px; left: 14px; right: 14px;
+      background: rgba(15,20,45,0.97); color: white;
+      padding: 16px; border-radius: 14px; z-index: 1001;
+      display: none; border: 1px solid rgba(255,255,255,0.15);
+    }
+    #infoCard h2 { margin: 0 0 6px; font-size: 18px; }
+    #infoCard p { margin: 3px 0; font-size: 13px; line-height: 1.4; opacity: 0.9; }
+    #infoCard .closeBtn {
+      position: absolute; top: 10px; right: 14px;
+      color: white; font-size: 18px; cursor: pointer; opacity: 0.6; background: none; border: none;
+    }
+    #infoCard .scaleNote {
+      margin-top: 8px; padding-top: 8px; border-top: 1px solid rgba(255,255,255,0.12);
+      font-size: 10.5px !important; opacity: 0.55 !important;
+    }
+
+    /* ===== PANEL CATATAN SKALA (toggle) ===== */
+    #scalePanel {
+      position: fixed; top: 64px; left: 14px; right: 14px;
+      background: rgba(15,20,45,0.97); color: white; border: 1px solid rgba(255,255,255,0.15);
+      border-radius: 14px; padding: 14px 16px; z-index: 1001; display: none; font-size: 12px; line-height: 1.5;
+    }
+    #scalePanel h3 { margin: 0 0 6px; font-size: 14px; }
+    #scalePanel .closeBtn { position: absolute; top: 8px; right: 12px; background: none; border: none; color: white; font-size: 18px; opacity: 0.6; }
+
+    /* ===== MODAL KUIS ===== */
+    #quizOverlay {
+      position: fixed; inset: 0; z-index: 2100; background: rgba(5,7,20,0.92);
+      display: none; align-items: center; justify-content: center; padding: 20px;
+    }
+    #quizCard {
+      background: linear-gradient(160deg, #171c3d, #0c0f24); border: 1px solid rgba(255,255,255,0.15);
+      border-radius: 18px; padding: 20px; width: 100%; max-width: 380px; color: white; position: relative;
+    }
+    #quizCard .closeBtn { position: absolute; top: 12px; right: 14px; background: none; border: none; color: white; font-size: 20px; opacity: 0.6; }
+    #quizProgress { font-size: 11px; opacity: 0.6; letter-spacing: 0.5px; text-transform: uppercase; }
+    #quizQuestion { font-size: 16px; font-weight: 600; margin: 8px 0 16px; line-height: 1.4; }
+    .quizOption {
+      display: block; width: 100%; text-align: left; padding: 12px 14px; margin-bottom: 8px;
+      border-radius: 10px; border: 1px solid rgba(255,255,255,0.15); background: rgba(255,255,255,0.04);
+      color: white; font-size: 13px;
+    }
+    .quizOption.correct { background: rgba(80,200,120,0.25); border-color: #50c878; }
+    .quizOption.wrong { background: rgba(220,80,80,0.25); border-color: #dc5050; }
+    #quizResult { text-align: center; }
+    #quizResult .scoreBig { font-size: 40px; font-weight: 700; color: #FDB813; margin: 6px 0; }
+    #quizRestart {
+      margin-top: 14px; width: 100%; padding: 12px; border-radius: 10px; border: none;
+      background: #FDB813; color: #1a1200; font-weight: 700; font-size: 13px;
+    }
+
+    .a-enter-vr { display: none !important; }
+
+    /* ===== LOADING SCREEN ===== */
+    #loadingScreen {
+      position: fixed; inset: 0; z-index: 2000;
+      background: radial-gradient(circle at center, #1a1f3d, #05070f);
+      display: flex; flex-direction: column; align-items: center; justify-content: center;
+      color: white; transition: opacity 0.6s ease;
+    }
+    #loadingScreen .spinner {
+      width: 44px; height: 44px; border-radius: 50%;
+      border: 3px solid rgba(255,255,255,0.2); border-top-color: #FDB813;
+      animation: spin 1s linear infinite; margin-bottom: 16px;
+    }
+    #loadingScreen p { font-size: 13px; opacity: 0.75; margin: 4px 0 0; }
+    #loadingScreen h2 { margin: 0; font-size: 17px; }
+    @keyframes spin { to { transform: rotate(360deg); } }
+    .fadeOut { opacity: 0; pointer-events: none; }
+  </style>
+</head>
+<body>
+
+  <!-- ============================================================
+       KANVAS TEKSTUR PROCEDURAL (planet + glow matahari + asteroid)
+       ============================================================ -->
+  <div style="display:none">
+    <canvas id="tex-sun" width="256" height="128"></canvas>
+    <canvas id="tex-sun-glow" width="128" height="128"></canvas>
+    <canvas id="tex-mercury" width="256" height="128"></canvas>
+    <canvas id="tex-venus" width="256" height="128"></canvas>
+    <canvas id="tex-earth" width="256" height="128"></canvas>
+    <canvas id="tex-moon" width="128" height="64"></canvas>
+    <canvas id="tex-mars" width="256" height="128"></canvas>
+    <canvas id="tex-jupiter" width="256" height="128"></canvas>
+    <canvas id="tex-saturn" width="256" height="128"></canvas>
+    <canvas id="tex-saturn-ring" width="256" height="32"></canvas>
+    <canvas id="tex-uranus" width="256" height="128"></canvas>
+    <canvas id="tex-neptune" width="256" height="128"></canvas>
+    <canvas id="tex-asteroid" width="64" height="64"></canvas>
+  </div>
+  <script>
+    // Fungsi generik: gambar bola planet dengan gradasi horizontal (band)
+    function drawPlanetTexture(canvasId, colorBands, noiseColor, noiseCount) {
+      const c = document.getElementById(canvasId);
+      const ctx = c.getContext('2d');
+      const w = c.width, h = c.height;
+      const grad = ctx.createLinearGradient(0, 0, 0, h);
+      colorBands.forEach((color, i) => grad.addColorStop(i / (colorBands.length - 1), color));
+      ctx.fillStyle = grad;
+      ctx.fillRect(0, 0, w, h);
+      if (noiseColor && noiseCount) {
+        for (let i = 0; i < noiseCount; i++) {
+          ctx.fillStyle = noiseColor;
+          ctx.globalAlpha = 0.15 + Math.random() * 0.25;
+          const rx = Math.random() * w;
+          const ry = Math.random() * h;
+          const rr = 2 + Math.random() * 8;
+          ctx.beginPath();
+          ctx.ellipse(rx, ry, rr, rr * 0.5, 0, 0, Math.PI * 2);
+          ctx.fill();
+        }
+        ctx.globalAlpha = 1;
+      }
+    }
+
+    // Glow/corona matahari: radial gradient dari kuning terang ke transparan
+    // (pendekatan "fake bloom" via billboard sphere transparan berlapis --
+    //  bloom sungguhan butuh UnrealBloomPass/postprocessing three.js yang
+    //  berat untuk setup embedded AR.js, jadi ini trade-off yang disengaja)
+    function drawGlowTexture(canvasId, innerColor, outerColor) {
+      const c = document.getElementById(canvasId);
+      const ctx = c.getContext('2d');
+      const w = c.width, h = c.height;
+      const grad = ctx.createRadialGradient(w/2, h/2, 0, w/2, h/2, w/2);
+      grad.addColorStop(0, innerColor);
+      grad.addColorStop(0.5, outerColor);
+      grad.addColorStop(1, 'rgba(253,184,19,0)');
+      ctx.fillStyle = grad;
+      ctx.fillRect(0, 0, w, h);
+    }
+
+    function drawAsteroidTexture(canvasId) {
+      const c = document.getElementById(canvasId);
+      const ctx = c.getContext('2d');
+      const w = c.width, h = c.height;
+      ctx.fillStyle = '#6b6459';
+      ctx.fillRect(0, 0, w, h);
+      for (let i = 0; i < 25; i++) {
+        ctx.fillStyle = Math.random() > 0.5 ? '#4d4740' : '#847a6a';
+        ctx.globalAlpha = 0.3 + Math.random() * 0.3;
+        ctx.beginPath();
+        ctx.ellipse(Math.random()*w, Math.random()*h, 2+Math.random()*5, 2+Math.random()*5, 0, 0, Math.PI*2);
+        ctx.fill();
+      }
+      ctx.globalAlpha = 1;
+    }
+
+    drawPlanetTexture('tex-sun', ['#FFE27A', '#FDB813', '#F7941D', '#FDB813', '#FFE27A'], '#FFF3C4', 40);
+    drawGlowTexture('tex-sun-glow', 'rgba(255,240,190,0.9)', 'rgba(253,184,19,0.35)');
+    drawPlanetTexture('tex-mercury', ['#8C8C8C', '#A9A9A9', '#6E6E6E', '#A9A9A9', '#8C8C8C'], '#5A5A5A', 60);
+    drawPlanetTexture('tex-venus', ['#E8C27E', '#E8B463', '#D89B4A', '#E8B463', '#E8C27E'], '#C98F3B', 25);
+    drawPlanetTexture('tex-earth', ['#1B4F8C', '#2E86DE', '#3AA0E8', '#2E86DE', '#1B4F8C'], '#3D9E4F', 30);
+    drawPlanetTexture('tex-moon', ['#9A9A9A', '#C4C4C4', '#8E8E8E'], '#6E6E6E', 20);
+    drawPlanetTexture('tex-mars', ['#8C2E1F', '#C0392B', '#D96B4F', '#C0392B', '#8C2E1F'], '#6E2015', 45);
+    drawPlanetTexture('tex-jupiter', ['#B98A5C', '#D9A066', '#E8C79A', '#C97D42', '#D9A066', '#B98A5C'], '#8C5E32', 15);
+    drawPlanetTexture('tex-saturn', ['#D9C08A', '#E8D5A8', '#D0B378', '#E8D5A8', '#D9C08A'], '#C4A868', 10);
+    drawPlanetTexture('tex-saturn-ring', ['#00000000', '#D9C89A', '#B89E6E', '#D9C89A', '#00000000'], null, 0);
+    drawPlanetTexture('tex-uranus', ['#7FD4D9', '#9FE3E8', '#7FD4D9'], '#63B8BD', 8);
+    drawPlanetTexture('tex-neptune', ['#2E4FA3', '#3D63C7', '#2E4FA3'], '#24398C', 12);
+    drawAsteroidTexture('tex-asteroid');
+  </script>
+
+  <div id="loadingScreen">
+    <div class="spinner"></div>
+    <h2>🌌 Menyiapkan Tata Surya...</h2>
+    <p>Menggambar tekstur planet, mohon tunggu</p>
+  </div>
+
+  <div id="header">
+    <h1>🌌 AR Tata Surya</h1>
+    <p>Kelompok [ISI NAMA KELOMPOK] — UAS Realitas Virtual & Augmentasi</p>
+  </div>
+
+  <div id="topActions">
+    <button id="btnQuiz">📝 Kuis</button>
+    <button id="btnScale">📏 Skala</button>
+  </div>
+
+  <!-- Panel penjelasan skala -- transparansi ke user, bukan janji akurasi palsu -->
+  <div id="scalePanel">
+    <button class="closeBtn" id="closeScale">✕</button>
+    <h3>Tentang Skala di Aplikasi Ini</h3>
+    <p>Jarak antar planet dan ukuran planet di sini <b>dipadatkan</b> supaya seluruh sistem muat dalam jangkauan kamera AR. Ini <b>bukan</b> skala 1:1 asli.</p>
+    <p>Contoh: jarak Neptunus ke Matahari sebenarnya ±78x jarak Merkurius ke Matahari, tapi di visual ini hanya digambar ±5x agar tetap terlihat di layar.</p>
+    <p>Jarak dan diameter <b>asli</b> tiap planet bisa dilihat di kartu info saat kamu tap planetnya.</p>
+  </div>
+
+  <div id="zoomControls">
+    <button id="zoomIn" aria-label="Perbesar">＋</button>
+    <button id="zoomOut" aria-label="Perkecil">－</button>
+    <button id="zoomReset" aria-label="Reset zoom">⟲</button>
+  </div>
+
+  <!-- Kontrol waktu simulasi: pause + kecepatan orbit -->
+  <div id="timeControls">
+    <button id="btnPause" aria-label="Jeda/lanjutkan simulasi">⏸</button>
+    <input type="range" id="speedSlider" min="0" max="8" step="0.1" value="1" aria-label="Kecepatan simulasi">
+    <span class="speedLabel" id="speedLabel">1.0x</span>
+  </div>
+
+  <div id="planetMenu"></div>
+
+  <div id="instruction">
+    📷 Arahkan kamera ke marker <b>Hiro</b>. Cubit layar / tombol ± untuk zoom, atau pilih planet di menu bawah.
+  </div>
+
+  <div id="infoCard">
+    <button class="closeBtn" id="closeInfo">✕</button>
+    <h2 id="infoTitle">-</h2>
+    <p id="infoDesc">-</p>
+    <p id="infoFacts">-</p>
+    <p class="scaleNote">Ukuran & jarak di visual AR dipadatkan — angka di atas adalah data astronomi asli.</p>
+  </div>
+
+  <!-- ===== MODAL KUIS ===== -->
+  <div id="quizOverlay">
+    <div id="quizCard">
+      <button class="closeBtn" id="closeQuiz">✕</button>
+      <div id="quizBody">
+        <div id="quizProgress">Soal 1 / 8</div>
+        <div id="quizQuestion">-</div>
+        <div id="quizOptions"></div>
+      </div>
+      <div id="quizResult" style="display:none">
+        <div style="font-size:13px;opacity:0.7;">Skor kamu</div>
+        <div class="scoreBig" id="scoreBig">0/8</div>
+        <div id="scoreMsg" style="font-size:12px;opacity:0.75;"></div>
+        <button id="quizRestart">Ulangi Kuis</button>
+      </div>
+    </div>
+  </div>
+
+  <a-scene
+    embedded
+    vr-mode-ui="enabled: false"
+    renderer="logarithmicDepthBuffer: true; antialias: true;"
+    arjs="sourceType: webcam; debugUIEnabled: false; detectionMode: mono_and_matrix; cameraParametersUrl: ./libs/data/camera_para.dat;"
+  >
+    <a-marker type="pattern" url="./libs/data/patt.hiro" id="mainMarker">
+
+      <a-entity id="systemRoot" scale="1 1 1">
+
+        <!-- ===== MATAHARI + GLOW (billboard berlapis, fake bloom) ===== -->
+        <a-sphere
+          position="0 0.3 0"
+          radius="0.35"
+          src="#tex-sun"
+          material="emissive: #FDB813; emissiveIntensity: 0.55; shader: standard; roughness: 1;"
+          orbit="speed: 18; axis: y"
+        ></a-sphere>
+        <a-plane look-at="[camera]" position="0 0.3 0" width="1.1" height="1.1" src="#tex-sun-glow"
+          material="shader: flat; transparent: true; opacity: 0.55; side: double; alphaTest: 0.01;"></a-plane>
+        <a-plane look-at="[camera]" position="0 0.3 0" width="0.65" height="0.65" src="#tex-sun-glow"
+          material="shader: flat; transparent: true; opacity: 0.75; side: double; alphaTest: 0.01;"></a-plane>
+        <a-light type="point" position="0 0.3 0" color="#FFE9A8" intensity="1" distance="7"></a-light>
+        <a-light type="ambient" color="#404868" intensity="0.35"></a-light>
+
+        <!-- ===== ORBIT MERKURIUS ===== -->
+        <a-entity orbit="speed: 60; axis: y">
+          <a-sphere class="planet" data-ref="Merkurius"
+            position="0.55 0.3 0" radius="0.06" src="#tex-mercury"
+            material="roughness: 0.9; metalness: 0;"
+            orbit="speed: 120; axis: y">
+            <a-sphere class="planet hitArea" data-ref="Merkurius" radius="0.16" material="opacity: 0; transparent: true;"></a-sphere>
+          </a-sphere>
+        </a-entity>
+
+        <!-- ===== ORBIT VENUS ===== -->
+        <a-entity orbit="speed: 40; axis: y">
+          <a-sphere class="planet" data-ref="Venus"
+            position="0.8 0.3 0" radius="0.09" src="#tex-venus"
+            material="roughness: 0.9; metalness: 0;"
+            orbit="speed: 90; axis: y">
+            <a-sphere class="planet hitArea" data-ref="Venus" radius="0.18" material="opacity: 0; transparent: true;"></a-sphere>
+          </a-sphere>
+        </a-entity>
+
+        <!-- ===== ORBIT BUMI (+ Bulan) ===== -->
+        <a-entity orbit="speed: 30; axis: y">
+          <a-entity position="1.05 0.3 0">
+            <a-sphere class="planet" data-ref="Bumi"
+              radius="0.1" src="#tex-earth"
+              material="roughness: 0.8; metalness: 0;"
+              orbit="speed: 180; axis: y">
+              <a-sphere class="planet hitArea" data-ref="Bumi" radius="0.19" material="opacity: 0; transparent: true;"></a-sphere>
+            </a-sphere>
+            <!-- Bulan mengorbit Bumi -->
+            <a-entity orbit="speed: 260; axis: y">
+              <a-sphere radius="0.025" position="0.2 0 0" src="#tex-moon" material="roughness: 1;"
+                orbit="speed: 80; axis: y"></a-sphere>
+            </a-entity>
+          </a-entity>
+        </a-entity>
+
+        <!-- ===== ORBIT MARS ===== -->
+        <a-entity orbit="speed: 24; axis: y">
+          <a-sphere class="planet" data-ref="Mars"
+            position="1.3 0.3 0" radius="0.08" src="#tex-mars"
+            material="roughness: 0.9; metalness: 0;"
+            orbit="speed: 144; axis: y">
+            <a-sphere class="planet hitArea" data-ref="Mars" radius="0.17" material="opacity: 0; transparent: true;"></a-sphere>
+          </a-sphere>
+        </a-entity>
+
+        <!-- ===== SABUK ASTEROID (Mars-Jupiter) — di-generate via JS ===== -->
+        <a-entity id="asteroidBelt" orbit="speed: 10; axis: y"></a-entity>
+
+        <!-- ===== ORBIT JUPITER ===== -->
+        <a-entity orbit="speed: 16; axis: y">
+          <a-sphere class="planet" data-ref="Jupiter"
+            position="1.65 0.3 0" radius="0.2" src="#tex-jupiter"
+            material="roughness: 0.85; metalness: 0;"
+            orbit="speed: 240; axis: y">
+            <a-sphere class="planet hitArea" data-ref="Jupiter" radius="0.3" material="opacity: 0; transparent: true;"></a-sphere>
+          </a-sphere>
+        </a-entity>
+
+        <!-- ===== ORBIT SATURNUS (dengan cincin) ===== -->
+        <a-entity orbit="speed: 13; axis: y">
+          <a-entity position="2.05 0.3 0">
+            <a-sphere class="planet" data-ref="Saturnus"
+              radius="0.17" src="#tex-saturn"
+              material="roughness: 0.85; metalness: 0;"
+              orbit="speed: 225; axis: y">
+              <a-sphere class="planet hitArea" data-ref="Saturnus" radius="0.32" material="opacity: 0; transparent: true;"></a-sphere>
+            </a-sphere>
+            <a-ring
+              radius-inner="0.22" radius-outer="0.36"
+              src="#tex-saturn-ring"
+              rotation="-75 0 0"
+              material="side: double; transparent: true; shader: flat;"
+            ></a-ring>
+          </a-entity>
+        </a-entity>
+
+        <!-- ===== ORBIT URANUS ===== -->
+        <a-entity orbit="speed: 10.5; axis: y">
+          <a-sphere class="planet" data-ref="Uranus"
+            position="2.35 0.3 0" radius="0.13" src="#tex-uranus"
+            material="roughness: 0.8; metalness: 0;"
+            orbit="speed: 200; axis: y"
+            rotation="98 0 0">
+            <a-sphere class="planet hitArea" data-ref="Uranus" radius="0.24" material="opacity: 0; transparent: true;"></a-sphere>
+          </a-sphere>
+        </a-entity>
+
+        <!-- ===== ORBIT NEPTUNUS ===== -->
+        <a-entity orbit="speed: 9; axis: y">
+          <a-sphere class="planet" data-ref="Neptunus"
+            position="2.65 0.3 0" radius="0.12" src="#tex-neptune"
+            material="roughness: 0.8; metalness: 0;"
+            orbit="speed: 190; axis: y">
+            <a-sphere class="planet hitArea" data-ref="Neptunus" radius="0.23" material="opacity: 0; transparent: true;"></a-sphere>
+          </a-sphere>
+        </a-entity>
+
+        <!-- ===== GARIS ORBIT (visual guide, statis) ===== -->
+        <a-ring radius-inner="0.548" radius-outer="0.552" position="0 0.3 0" rotation="-90 0 0" material="color: #ffffff; opacity: 0.25; transparent: true; shader: flat; side: double;"></a-ring>
+        <a-ring radius-inner="0.798" radius-outer="0.802" position="0 0.3 0" rotation="-90 0 0" material="color: #ffffff; opacity: 0.25; transparent: true; shader: flat; side: double;"></a-ring>
+        <a-ring radius-inner="1.048" radius-outer="1.052" position="0 0.3 0" rotation="-90 0 0" material="color: #ffffff; opacity: 0.25; transparent: true; shader: flat; side: double;"></a-ring>
+        <a-ring radius-inner="1.298" radius-outer="1.302" position="0 0.3 0" rotation="-90 0 0" material="color: #ffffff; opacity: 0.25; transparent: true; shader: flat; side: double;"></a-ring>
+        <a-ring radius-inner="1.648" radius-outer="1.652" position="0 0.3 0" rotation="-90 0 0" material="color: #ffffff; opacity: 0.25; transparent: true; shader: flat; side: double;"></a-ring>
+        <a-ring radius-inner="2.048" radius-outer="2.052" position="0 0.3 0" rotation="-90 0 0" material="color: #ffffff; opacity: 0.2; transparent: true; shader: flat; side: double;"></a-ring>
+        <a-ring radius-inner="2.348" radius-outer="2.352" position="0 0.3 0" rotation="-90 0 0" material="color: #ffffff; opacity: 0.2; transparent: true; shader: flat; side: double;"></a-ring>
+        <a-ring radius-inner="2.648" radius-outer="2.652" position="0 0.3 0" rotation="-90 0 0" material="color: #ffffff; opacity: 0.2; transparent: true; shader: flat; side: double;"></a-ring>
+
+        <a-text
+          value="Sistem Tata Surya"
+          position="0 1 0" align="center" color="#FFFFFF" width="3"
+        ></a-text>
+      </a-entity>
+    </a-marker>
+
+    <a-entity camera></a-entity>
+  </a-scene>
+
+  <script>
+    // =====================================================================
+    // KOMPONEN CUSTOM: orbit
+    // Menggantikan attribute `animation` bawaan supaya rotasi/revolusi bisa
+    // di-pause dan diubah kecepatannya secara realtime lewat window.simPaused
+    // dan window.simSpeed -- ini yang membuat panel "Kontrol Waktu" di UI
+    // benar-benar berfungsi, bukan sekadar animasi berdurasi tetap.
+    // =====================================================================
+    window.simPaused = false;
+    window.simSpeed = 1;
+
+    AFRAME.registerComponent('orbit', {
+      schema: {
+        speed: { type: 'number', default: 10 }, // derajat/detik pada speed=1
+        axis: { type: 'string', default: 'y' }
+      },
+      tick: function (t, dt) {
+        if (window.simPaused || !dt) return;
+        const deg = this.data.speed * window.simSpeed * (dt / 1000);
+        const rad = THREE.MathUtils ? THREE.MathUtils.degToRad(deg) : (deg * Math.PI / 180);
+        this.el.object3D.rotation[this.data.axis] += rad;
+      }
+    });
+
+    // ===== DATA PLANET (satu-satunya sumber kebenaran) =====
+    const PLANETS = [
+      { name: 'Merkurius', color: '#A9A9A9', desc: "Planet terdekat dengan Matahari, tanpa atmosfer berarti.", facts: "Jarak: 57.9 juta km | Diameter: 4.879 km | Suhu: 430°C (siang) / -180°C (malam)" },
+      { name: 'Venus', color: '#E8B463', desc: "Planet terpanas di tata surya akibat efek rumah kaca ekstrem.", facts: "Jarak: 108 juta km | Diameter: 12.104 km | Suhu: ±465°C" },
+      { name: 'Bumi', color: '#2E86DE', desc: "Satu-satunya planet yang diketahui memiliki kehidupan.", facts: "Jarak: 150 juta km | Diameter: 12.742 km | Satelit: 1 (Bulan)" },
+      { name: 'Mars', color: '#C0392B', desc: "Dikenal sebagai 'Planet Merah', target utama eksplorasi manusia.", facts: "Jarak: 228 juta km | Diameter: 6.779 km | Satelit: 2 (Phobos & Deimos)" },
+      { name: 'Jupiter', color: '#D9A066', desc: "Planet terbesar di tata surya, raksasa gas dengan badai besar.", facts: "Jarak: 778 juta km | Diameter: 139.820 km | Satelit: 95+" },
+      { name: 'Saturnus', color: '#E8D5A8', desc: "Terkenal dengan cincin es dan batuan yang mengelilinginya, planet dengan kepadatan terendah.", facts: "Jarak: 1.4 miliar km | Diameter: 116.460 km | Satelit: 145+" },
+      { name: 'Uranus', color: '#9FE3E8', desc: "Planet unik karena berotasi 'menyamping' (miring ~98°), kemungkinan akibat tabrakan besar di masa lalu.", facts: "Jarak: 2.9 miliar km | Diameter: 50.724 km | Satelit: 27" },
+      { name: 'Neptunus', color: '#3D63C7', desc: "Planet terjauh dari Matahari, memiliki angin terkencang di tata surya.", facts: "Jarak: 4.5 miliar km | Diameter: 49.244 km | Satelit: 16" },
+    ];
+
+    function showPlanetInfo(name) {
+      const p = PLANETS.find(pl => pl.name === name);
+      if (!p) return;
+      document.getElementById('infoTitle').innerText = p.name;
+      document.getElementById('infoDesc').innerText = p.desc;
+      document.getElementById('infoFacts').innerText = p.facts;
+      document.getElementById('infoCard').style.display = 'block';
+      playClickSound(500 + PLANETS.indexOf(p) * 60);
+    }
+
+    document.addEventListener('DOMContentLoaded', () => {
+      const menu = document.getElementById('planetMenu');
+      PLANETS.forEach(p => {
+        const chip = document.createElement('div');
+        chip.className = 'planetChip';
+        chip.innerHTML = `<span class="dot" style="background:${p.color}"></span>${p.name}`;
+        chip.addEventListener('click', () => showPlanetInfo(p.name));
+        menu.appendChild(chip);
+      });
+      document.getElementById('closeInfo').addEventListener('click', () => {
+        document.getElementById('infoCard').style.display = 'none';
+      });
+    });
+
+    // ===== LOADING SCREEN =====
+    document.addEventListener('DOMContentLoaded', () => {
+      const scene = document.querySelector('a-scene');
+      const loadingScreen = document.getElementById('loadingScreen');
+
+      scene.addEventListener('loaded', () => {
+        setTimeout(() => {
+          loadingScreen.classList.add('fadeOut');
+          setTimeout(() => loadingScreen.remove(), 700);
+        }, 500);
+      });
+
+      setTimeout(() => {
+        if (document.getElementById('loadingScreen')) {
+          loadingScreen.classList.add('fadeOut');
+          setTimeout(() => loadingScreen.remove(), 700);
+        }
+      }, 5000);
+    });
+
+    // ===== EFEK SUARA KLIK (satu AudioContext dipakai ulang, bukan dibuat tiap klik) =====
+    let sharedAudioCtx = null;
+    function playClickSound(freq = 660) {
+      try {
+        if (!sharedAudioCtx) {
+          sharedAudioCtx = new (window.AudioContext || window.webkitAudioContext)();
+        }
+        if (sharedAudioCtx.state === 'suspended') sharedAudioCtx.resume();
+        const osc = sharedAudioCtx.createOscillator();
+        const gain = sharedAudioCtx.createGain();
+        osc.type = 'sine';
+        osc.frequency.value = freq;
+        gain.gain.setValueAtTime(0.15, sharedAudioCtx.currentTime);
+        gain.gain.exponentialRampToValueAtTime(0.001, sharedAudioCtx.currentTime + 0.25);
+        osc.connect(gain).connect(sharedAudioCtx.destination);
+        osc.start();
+        osc.stop(sharedAudioCtx.currentTime + 0.25);
+      } catch (e) { /* abaikan jika browser memblokir audio tanpa interaksi */ }
+    }
+
+    // ===== INTERAKSI TAP LANGSUNG PADA OBJEK 3D =====
+    document.addEventListener('DOMContentLoaded', () => {
+      const cameraEl = document.querySelector('[camera]');
+      const cursor = document.createElement('a-entity');
+      cursor.setAttribute('cursor', 'fuse: false; rayOrigin: mouse;');
+      cursor.setAttribute('raycaster', 'objects: .hitArea; far: 30; interval: 50');
+      cameraEl.appendChild(cursor);
+
+      document.querySelectorAll('.hitArea').forEach(hitArea => {
+        hitArea.addEventListener('click', () => {
+          showPlanetInfo(hitArea.getAttribute('data-ref'));
+        });
+      });
+    });
+
+    // ===== ZOOM: tombol +/-/reset dan pinch dua jari =====
+    document.addEventListener('DOMContentLoaded', () => {
+      let currentScale = 1;
+      const MIN_SCALE = 0.35, MAX_SCALE = 2.5;
+
+      function applyScale(s) {
+        currentScale = Math.min(MAX_SCALE, Math.max(MIN_SCALE, s));
+        const root = document.getElementById('systemRoot');
+        if (root) root.setAttribute('scale', `${currentScale} ${currentScale} ${currentScale}`);
+      }
+
+      document.getElementById('zoomIn').addEventListener('click', () => applyScale(currentScale + 0.2));
+      document.getElementById('zoomOut').addEventListener('click', () => applyScale(currentScale - 0.2));
+      document.getElementById('zoomReset').addEventListener('click', () => applyScale(1));
+
+      let pinchStartDist = null;
+      let pinchStartScale = 1;
+
+      function getDist(touches) {
+        const dx = touches[0].clientX - touches[1].clientX;
+        const dy = touches[0].clientY - touches[1].clientY;
+        return Math.sqrt(dx * dx + dy * dy);
+      }
+
+      window.addEventListener('touchstart', (e) => {
+        if (e.touches.length === 2) {
+          pinchStartDist = getDist(e.touches);
+          pinchStartScale = currentScale;
+        }
+      }, { passive: true });
+
+      window.addEventListener('touchmove', (e) => {
+        if (e.touches.length === 2 && pinchStartDist) {
+          const newDist = getDist(e.touches);
+          const ratio = newDist / pinchStartDist;
+          applyScale(pinchStartScale * ratio);
+        }
+      }, { passive: true });
+
+      window.addEventListener('touchend', (e) => {
+        if (e.touches.length < 2) pinchStartDist = null;
+      });
+    });
+
+    // ===== KONTROL WAKTU SIMULASI (pause + kecepatan) =====
+    document.addEventListener('DOMContentLoaded', () => {
+      const btnPause = document.getElementById('btnPause');
+      const slider = document.getElementById('speedSlider');
+      const label = document.getElementById('speedLabel');
+
+      btnPause.addEventListener('click', () => {
+        window.simPaused = !window.simPaused;
+        btnPause.textContent = window.simPaused ? '▶' : '⏸';
+      });
+
+      slider.addEventListener('input', () => {
+        window.simSpeed = parseFloat(slider.value);
+        label.textContent = window.simSpeed.toFixed(1) + 'x';
+      });
+    });
+
+    // ===== PANEL SKALA =====
+    document.addEventListener('DOMContentLoaded', () => {
+      const panel = document.getElementById('scalePanel');
+      document.getElementById('btnScale').addEventListener('click', () => {
+        panel.style.display = panel.style.display === 'block' ? 'none' : 'block';
+      });
+      document.getElementById('closeScale').addEventListener('click', () => {
+        panel.style.display = 'none';
+      });
+    });
+
+    // ===== SABUK ASTEROID (di-generate, bukan hardcode manual) =====
+    document.addEventListener('DOMContentLoaded', () => {
+      const belt = document.getElementById('asteroidBelt');
+      const ASTEROID_COUNT = 36;
+      const R_MIN = 1.42, R_MAX = 1.58;
+      for (let i = 0; i < ASTEROID_COUNT; i++) {
+        const angle = (i / ASTEROID_COUNT) * 360 + (Math.random() * 8 - 4);
+        const r = R_MIN + Math.random() * (R_MAX - R_MIN);
+        const rad = angle * Math.PI / 180;
+        const x = Math.cos(rad) * r;
+        const z = Math.sin(rad) * r;
+        const y = 0.3 + (Math.random() * 0.06 - 0.03);
+        const size = 0.008 + Math.random() * 0.014;
+
+        const rock = document.createElement('a-sphere');
+        rock.setAttribute('radius', size.toFixed(3));
+        rock.setAttribute('position', `${x.toFixed(3)} ${y.toFixed(3)} ${z.toFixed(3)}`);
+        rock.setAttribute('src', '#tex-asteroid');
+        rock.setAttribute('material', 'roughness: 1; metalness: 0;');
+        rock.setAttribute('orbit', `speed: ${(20 + Math.random() * 60).toFixed(0)}; axis: ${Math.random() > 0.5 ? 'x' : 'y'}`);
+        belt.appendChild(rock);
+      }
+    });
+
+    // =====================================================================
+    // KUIS INTERAKTIF -- dibangun dari data PLANETS yang sama dipakai kartu
+    // info, supaya tidak ada duplikasi/ketidaksinkronan data.
+    // =====================================================================
+    document.addEventListener('DOMContentLoaded', () => {
+      function shuffle(arr) { return arr.map(v => [Math.random(), v]).sort((a,b) => a[0]-b[0]).map(v => v[1]); }
+
+      function buildQuestions() {
+        const qs = [];
+        // Tipe 1: cocokkan deskripsi -> nama planet
+        shuffle(PLANETS).forEach(p => {
+          const distractors = shuffle(PLANETS.filter(x => x.name !== p.name)).slice(0, 3).map(x => x.name);
+          qs.push({
+            question: `Planet mana yang: "${p.desc}"`,
+            options: shuffle([p.name, ...distractors]),
+            answer: p.name
+          });
+        });
+        return shuffle(qs).slice(0, 8);
+      }
+
+      let questions = buildQuestions();
+      let qIndex = 0, score = 0, answered = false;
+
+      const overlay = document.getElementById('quizOverlay');
+      const body = document.getElementById('quizBody');
+      const resultEl = document.getElementById('quizResult');
+      const progressEl = document.getElementById('quizProgress');
+      const questionEl = document.getElementById('quizQuestion');
+      const optionsEl = document.getElementById('quizOptions');
+
+      function renderQuestion() {
+        answered = false;
+        body.style.display = 'block';
+        resultEl.style.display = 'none';
+        const q = questions[qIndex];
+        progressEl.textContent = `Soal ${qIndex + 1} / ${questions.length}`;
+        questionEl.textContent = q.question;
+        optionsEl.innerHTML = '';
+        q.options.forEach(opt => {
+          const btn = document.createElement('button');
+          btn.className = 'quizOption';
+          btn.textContent = opt;
+          btn.addEventListener('click', () => selectAnswer(opt, btn));
+          optionsEl.appendChild(btn);
+        });
+      }
+
+      function selectAnswer(opt, btnEl) {
+        if (answered) return;
+        answered = true;
+        const q = questions[qIndex];
+        const correct = opt === q.answer;
+        if (correct) score++;
+        [...optionsEl.children].forEach(btn => {
+          if (btn.textContent === q.answer) btn.classList.add('correct');
+          else if (btn === btnEl) btn.classList.add('wrong');
+        });
+        playClickSound(correct ? 780 : 220);
+        setTimeout(() => {
+          qIndex++;
+          if (qIndex < questions.length) renderQuestion();
+          else showResult();
+        }, 900);
+      }
+
+      function showResult() {
+        body.style.display = 'none';
+        resultEl.style.display = 'block';
+        document.getElementById('scoreBig').textContent = `${score}/${questions.length}`;
+        const pct = score / questions.length;
+        document.getElementById('scoreMsg').textContent =
+          pct === 1 ? 'Sempurna! Kamu hafal seluruh tata surya.' :
+          pct >= 0.6 ? 'Bagus, tinggal perkuat beberapa fakta lagi.' :
+          'Coba tap tiap planet di menu bawah dulu, lalu ulangi kuis.';
+      }
+
+      document.getElementById('btnQuiz').addEventListener('click', () => {
+        questions = buildQuestions();
+        qIndex = 0; score = 0;
+        overlay.style.display = 'flex';
+        renderQuestion();
+      });
+      document.getElementById('closeQuiz').addEventListener('click', () => {
+        overlay.style.display = 'none';
+      });
+      document.getElementById('quizRestart').addEventListener('click', () => {
+        questions = buildQuestions();
+        qIndex = 0; score = 0;
+        renderQuestion();
+      });
+    });
+  </script>
+
+</body>
+</html>
