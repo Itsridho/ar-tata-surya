@@ -4,8 +4,15 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, user-scalable=no, viewport-fit=cover">
   <title>AR Tata Surya - UAS RVA (Revisi)</title>
-  <script src="./libs/aframe.min.js"></script>
-  <script src="./libs/aframe-ar.js"></script>
+  <script>
+    // Ditaruh SEBELUM library dimuat, supaya onerror di bawah bisa langsung memanggilnya
+    // kalau file library gagal di-fetch (mis. lupa upload folder /libs saat hosting,
+    // atau path relatif salah).
+    window.__libFailed = [];
+    window.__libFail = function (name) { window.__libFailed.push(name); };
+  </script>
+  <script src="./libs/aframe.min.js" onerror="window.__libFail('aframe.min.js')"></script>
+  <script src="./libs/aframe-ar.js" onerror="window.__libFail('aframe-ar.js')"></script>
   <style>
     * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
     body { margin: 0; overflow: hidden; font-family: 'Segoe UI', sans-serif; }
@@ -137,6 +144,56 @@
 
     .a-enter-vr { display: none !important; }
 
+    /* ===== INDIKATOR STATUS MARKER ===== */
+    #markerStatus {
+      position: fixed; left: 14px; top: calc(52px + env(safe-area-inset-top, 0px));
+      z-index: 999; display: flex; align-items: center; gap: 6px;
+      background: rgba(15,20,45,0.85); color: white; border-radius: 14px;
+      padding: 5px 10px 5px 8px; font-size: 10.5px; pointer-events: none;
+      transition: opacity 0.3s ease, background 0.3s ease;
+    }
+    #markerStatus .dot {
+      width: 8px; height: 8px; border-radius: 50%; background: #dc5050;
+      box-shadow: 0 0 6px #dc5050; transition: background 0.3s ease, box-shadow 0.3s ease;
+      flex: 0 0 auto;
+    }
+    #markerStatus.found .dot { background: #50c878; box-shadow: 0 0 6px #50c878; }
+    #markerStatus.found { background: rgba(20,50,35,0.85); }
+
+    /* ===== HINT MARKER TIDAK TERDETEKSI (muncul kalau lama tidak ketemu) ===== */
+    #markerHint {
+      position: fixed; left: 14px; right: 14px; bottom: calc(40px + env(safe-area-inset-bottom, 0px));
+      z-index: 1000; background: rgba(220,80,80,0.15); border: 1px solid rgba(220,80,80,0.4);
+      color: white; padding: 10px 14px; border-radius: 10px; font-size: 11.5px;
+      text-align: center; display: none; line-height: 1.5;
+    }
+    #markerHint a { color: #FDB813; }
+
+    /* ===== TOMBOL MODE PRATINJAU (tanpa kamera/marker) ===== */
+    #previewToggle {
+      position: fixed; left: 12px; bottom: calc(12px + env(safe-area-inset-bottom, 0px));
+      z-index: 1000; border: none; border-radius: 16px; padding: 7px 12px; font-size: 11px;
+      background: rgba(15,20,45,0.85); color: white; font-weight: 600;
+    }
+    #previewToggle.active { background: #FDB813; color: #1a1200; }
+    body.preview-mode #instruction,
+    body.preview-mode #markerStatus,
+    body.preview-mode #markerHint { display: none !important; }
+    body.preview-mode a-scene { background: radial-gradient(circle at 50% 30%, #10142c, #05070f); }
+
+    /* ===== LAYAR ERROR (library gagal dimuat / kamera ditolak) ===== */
+    #errorScreen {
+      position: fixed; inset: 0; z-index: 3000; background: rgba(5,7,20,0.97);
+      color: white; display: none; align-items: center; justify-content: center; padding: 24px;
+    }
+    #errorScreen .box { max-width: 380px; text-align: center; }
+    #errorScreen h2 { font-size: 18px; margin: 0 0 10px; }
+    #errorScreen p { font-size: 13px; line-height: 1.6; opacity: 0.85; margin: 0 0 8px; }
+    #errorScreen button {
+      margin-top: 14px; padding: 10px 20px; border-radius: 10px; border: none;
+      background: #FDB813; color: #1a1200; font-weight: 700; font-size: 13px;
+    }
+
     /* ===== LOADING SCREEN ===== */
     #loadingScreen {
       position: fixed; inset: 0; z-index: 2000;
@@ -253,10 +310,31 @@
     <p>Menggambar tekstur planet, mohon tunggu</p>
   </div>
 
+  <!-- Layar error: tampil kalau library gagal dimuat atau kamera ditolak/tidak tersedia -->
+  <div id="errorScreen" role="alertdialog" aria-live="assertive">
+    <div class="box">
+      <h2 id="errorTitle">⚠️ Terjadi Masalah</h2>
+      <p id="errorMsg">-</p>
+      <button id="errorRetry">Coba Lagi</button>
+    </div>
+  </div>
+
   <div id="header">
     <h1>🌌 AR Tata Surya</h1>
     <p>Kelompok [ISI NAMA KELOMPOK] — UAS Realitas Virtual & Augmentasi</p>
   </div>
+
+  <div id="markerStatus" aria-live="polite">
+    <span class="dot"></span><span id="markerStatusText">Mencari marker...</span>
+  </div>
+
+  <div id="markerHint">
+    Marker belum terdeteksi. Pastikan pencahayaan cukup &amp; marker <b>Hiro</b> terlihat penuh oleh kamera.
+    Belum punya markernya? <a href="https://raw.githubusercontent.com/AR-js-org/AR.js/master/data/images/hiro.png" target="_blank" rel="noopener">unduh &amp; cetak di sini</a>,
+    atau coba <b>Mode Pratinjau</b> di pojok kiri bawah.
+  </div>
+
+  <button id="previewToggle" aria-pressed="false">🖥️ Mode Pratinjau</button>
 
   <div id="topActions">
     <button id="btnQuiz">📝 Kuis</button>
@@ -312,6 +390,7 @@
         <div style="font-size:13px;opacity:0.7;">Skor kamu</div>
         <div class="scoreBig" id="scoreBig">0/8</div>
         <div id="scoreMsg" style="font-size:12px;opacity:0.75;"></div>
+        <div id="quizBest" style="font-size:11px;opacity:0.55;margin-top:6px;">-</div>
         <button id="quizRestart">Ulangi Kuis</button>
       </div>
     </div>
@@ -323,7 +402,8 @@
     renderer="logarithmicDepthBuffer: true; antialias: true;"
     arjs="sourceType: webcam; debugUIEnabled: false; detectionMode: mono_and_matrix; cameraParametersUrl: ./libs/data/camera_para.dat;"
   >
-    <a-marker type="pattern" url="./libs/data/patt.hiro" id="mainMarker">
+    <a-marker type="pattern" url="./libs/data/patt.hiro" id="mainMarker"
+      emitevents="true">
 
       <a-entity id="systemRoot" scale="1 1 1">
 
@@ -458,7 +538,16 @@
       </a-entity>
     </a-marker>
 
-    <a-entity camera></a-entity>
+    <a-entity id="arCamera" camera="active: true"
+      cursor="fuse: false; rayOrigin: mouse;"
+      raycaster="objects: .hitArea; far: 30; interval: 50"></a-entity>
+
+    <!-- Kamera mode pratinjau: dipakai saat marker/kamera belum tersedia,
+         supaya sistem tata surya tetap bisa didemokan (drag mouse/jari untuk lihat sekeliling). -->
+    <a-entity id="previewCamera" camera="active: false" visible="false"
+      position="0 0.5 3" look-controls="pointerLockEnabled: false"
+      cursor="fuse: false; rayOrigin: mouse;"
+      raycaster="objects: .hitArea; far: 30; interval: 50"></a-entity>
   </a-scene>
 
   <script>
@@ -562,13 +651,8 @@
     }
 
     // ===== INTERAKSI TAP LANGSUNG PADA OBJEK 3D =====
+    // (cursor + raycaster sudah didefinisikan langsung di markup #arCamera & #previewCamera)
     document.addEventListener('DOMContentLoaded', () => {
-      const cameraEl = document.querySelector('[camera]');
-      const cursor = document.createElement('a-entity');
-      cursor.setAttribute('cursor', 'fuse: false; rayOrigin: mouse;');
-      cursor.setAttribute('raycaster', 'objects: .hitArea; far: 30; interval: 50');
-      cameraEl.appendChild(cursor);
-
       document.querySelectorAll('.hitArea').forEach(hitArea => {
         hitArea.addEventListener('click', () => {
           showPlanetInfo(hitArea.getAttribute('data-ref'));
@@ -738,6 +822,19 @@
         }, 900);
       }
 
+      // Skor terbaik disimpan lokal di perangkat (bukan dikirim ke server mana pun)
+      function getBestScore() {
+        try { return parseInt(localStorage.getItem('arTataSurya_bestScore') || '0', 10); }
+        catch (e) { return 0; }
+      }
+      function saveBestScoreIfHigher(newScore) {
+        try {
+          const best = getBestScore();
+          if (newScore > best) localStorage.setItem('arTataSurya_bestScore', String(newScore));
+          return Math.max(best, newScore);
+        } catch (e) { return newScore; }
+      }
+
       function showResult() {
         body.style.display = 'none';
         resultEl.style.display = 'block';
@@ -747,6 +844,9 @@
           pct === 1 ? 'Sempurna! Kamu hafal seluruh tata surya.' :
           pct >= 0.6 ? 'Bagus, tinggal perkuat beberapa fakta lagi.' :
           'Coba tap tiap planet di menu bawah dulu, lalu ulangi kuis.';
+        const best = saveBestScoreIfHigher(score);
+        const bestEl = document.getElementById('quizBest');
+        if (bestEl) bestEl.textContent = `Skor terbaikmu: ${best}/${questions.length}`;
       }
 
       document.getElementById('btnQuiz').addEventListener('click', () => {
@@ -762,6 +862,123 @@
         questions = buildQuestions();
         qIndex = 0; score = 0;
         renderQuestion();
+      });
+    });
+  </script>
+
+  <!-- =====================================================================
+       BLOK BARU: penanganan error, indikator marker, & mode pratinjau
+       ===================================================================== -->
+  <script>
+    function showError(title, msg) {
+      const loadingScreen = document.getElementById('loadingScreen');
+      if (loadingScreen) loadingScreen.remove();
+      document.getElementById('errorTitle').textContent = title;
+      document.getElementById('errorMsg').textContent = msg;
+      document.getElementById('errorScreen').style.display = 'flex';
+    }
+    document.getElementById('errorRetry').addEventListener('click', () => location.reload());
+
+    // ----- 1) Library A-Frame / AR.js gagal dimuat -----
+    window.addEventListener('load', () => {
+      if ((window.__libFailed && window.__libFailed.length) || typeof AFRAME === 'undefined') {
+        showError(
+          '⚠️ Library Gagal Dimuat',
+          'File ' + (window.__libFailed && window.__libFailed.join(', ') || 'aframe/aframe-ar') +
+          ' tidak ditemukan. Pastikan folder "libs" ada satu direktori dengan index.html ini, ' +
+          'dan file dijalankan lewat server lokal (bukan dibuka langsung sebagai file://).'
+        );
+      }
+    });
+
+    // ----- 2) Kamera ditolak / tidak tersedia -----
+    // Dibungkus di sini (bukan mengganti getUserMedia asli) supaya AR.js tetap
+    // berjalan normal, kita cuma "menguping" hasil izin kameranya.
+    if (navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
+      const originalGetUserMedia = navigator.mediaDevices.getUserMedia.bind(navigator.mediaDevices);
+      navigator.mediaDevices.getUserMedia = function (constraints) {
+        return originalGetUserMedia(constraints).catch((err) => {
+          showError(
+            '📷 Kamera Tidak Bisa Diakses',
+            (err && err.name === 'NotAllowedError')
+              ? 'Izin kamera ditolak. Aktifkan izin kamera untuk situs ini di pengaturan browser, lalu muat ulang. Atau coba "Mode Pratinjau" di pojok kiri bawah untuk melihat model tanpa kamera.'
+              : 'Kamera tidak ditemukan/tidak bisa dipakai (' + (err && err.name || 'error') + '). Coba "Mode Pratinjau" di pojok kiri bawah untuk tetap melihat model 3D-nya.'
+          );
+          throw err;
+        });
+      };
+    }
+
+    // ----- 3) Indikator status marker (ditemukan/tidak) + hint kalau lama tidak ketemu -----
+    document.addEventListener('DOMContentLoaded', () => {
+      const marker = document.getElementById('mainMarker');
+      const statusEl = document.getElementById('markerStatus');
+      const statusText = document.getElementById('markerStatusText');
+      const hintEl = document.getElementById('markerHint');
+      let hintTimer = null;
+
+      function scheduleHint() {
+        clearTimeout(hintTimer);
+        hintTimer = setTimeout(() => {
+          if (!document.body.classList.contains('preview-mode')) hintEl.style.display = 'block';
+        }, 12000);
+      }
+
+      marker.addEventListener('markerFound', () => {
+        statusEl.classList.add('found');
+        statusText.textContent = 'Marker terdeteksi';
+        hintEl.style.display = 'none';
+        clearTimeout(hintTimer);
+      });
+      marker.addEventListener('markerLost', () => {
+        statusEl.classList.remove('found');
+        statusText.textContent = 'Mencari marker...';
+        scheduleHint();
+      });
+
+      scheduleHint();
+    });
+
+    // ----- 4) Mode Pratinjau (tanpa kamera/marker) -----
+    // Berguna untuk demo/penilaian saat marker fisik tidak tersedia, atau kamera bermasalah.
+    document.addEventListener('DOMContentLoaded', () => {
+      const toggleBtn = document.getElementById('previewToggle');
+      const systemRoot = document.getElementById('systemRoot');
+      const sceneEl = document.querySelector('a-scene');
+      const arCamera = document.getElementById('arCamera');
+      const previewCamera = document.getElementById('previewCamera');
+      const originalParent = systemRoot.parentNode;
+      let inPreview = false;
+
+      toggleBtn.addEventListener('click', () => {
+        inPreview = !inPreview;
+        document.body.classList.toggle('preview-mode', inPreview);
+        toggleBtn.classList.toggle('active', inPreview);
+        toggleBtn.setAttribute('aria-pressed', String(inPreview));
+        toggleBtn.textContent = inPreview ? '📷 Kembali ke AR' : '🖥️ Mode Pratinjau';
+
+        if (inPreview) {
+          sceneEl.appendChild(systemRoot);
+          arCamera.setAttribute('camera', 'active', false);
+          previewCamera.setAttribute('camera', 'active', true);
+          previewCamera.setAttribute('visible', true);
+        } else {
+          originalParent.appendChild(systemRoot);
+          previewCamera.setAttribute('camera', 'active', false);
+          previewCamera.setAttribute('visible', false);
+          arCamera.setAttribute('camera', 'active', true);
+        }
+      });
+    });
+
+    // ----- 5) Escape untuk menutup modal/panel (aksesibilitas keyboard) -----
+    document.addEventListener('keydown', (e) => {
+      if (e.key !== 'Escape') return;
+      ['quizOverlay', 'infoCard', 'scalePanel'].forEach((id) => {
+        const el = document.getElementById(id);
+        if (el && (el.style.display === 'block' || el.style.display === 'flex')) {
+          el.style.display = 'none';
+        }
       });
     });
   </script>
