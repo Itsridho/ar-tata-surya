@@ -116,6 +116,17 @@
     #scalePanel h3 { margin: 0 0 6px; font-size: 14px; }
     #scalePanel .closeBtn { position: absolute; top: 8px; right: 12px; background: none; border: none; color: white; font-size: 18px; opacity: 0.6; }
 
+    /* ===== PANEL INFO KELOMPOK (toggle) ===== */
+    #creditsPanel {
+      position: fixed; top: 64px; left: 14px; right: 14px;
+      background: rgba(15,20,45,0.97); color: white; border: 1px solid rgba(255,255,255,0.15);
+      border-radius: 14px; padding: 14px 16px; z-index: 1001; display: none; font-size: 12px; line-height: 1.5;
+    }
+    #creditsPanel h3 { margin: 0 0 6px; font-size: 14px; }
+    #creditsPanel .closeBtn { position: absolute; top: 8px; right: 12px; background: none; border: none; color: white; font-size: 18px; opacity: 0.6; }
+    #creditsPanel ol { margin: 6px 0 0; padding-left: 18px; }
+    #creditsPanel ol li { margin-bottom: 3px; }
+
     /* ===== MODAL KUIS ===== */
     #quizOverlay {
       position: fixed; inset: 0; z-index: 2100; background: rgba(5,7,20,0.92);
@@ -321,7 +332,7 @@
 
   <div id="header">
     <h1>🌌 AR Tata Surya</h1>
-    <p>Kelompok [ISI NAMA KELOMPOK] — UAS Realitas Virtual & Augmentasi</p>
+    <p>Kelompok 4 — UAS Realitas Virtual & Augmentasi</p>
   </div>
 
   <div id="markerStatus" aria-live="polite">
@@ -329,16 +340,30 @@
   </div>
 
   <div id="markerHint">
-    Marker belum terdeteksi. Pastikan pencahayaan cukup &amp; marker <b>Hiro</b> terlihat penuh oleh kamera.
-    Belum punya markernya? <a href="https://raw.githubusercontent.com/AR-js-org/AR.js/master/data/images/hiro.png" target="_blank" rel="noopener">unduh &amp; cetak di sini</a>,
+    Marker belum terdeteksi. Pastikan pencahayaan cukup &amp; marker <b>Tata Surya (custom)</b> terlihat penuh oleh kamera.
+    Belum punya markernya? <a href="./marker-custom-print.png" target="_blank" rel="noopener">buka &amp; cetak gambar marker di sini</a>,
     atau coba <b>Mode Pratinjau</b> di pojok kiri bawah.
   </div>
 
   <button id="previewToggle" aria-pressed="false">🖥️ Mode Pratinjau</button>
 
   <div id="topActions">
+    <button id="btnCredits">👥 Kelompok</button>
     <button id="btnQuiz">📝 Kuis</button>
     <button id="btnScale">📏 Skala</button>
+  </div>
+
+  <!-- Panel identitas kelompok -- isi placeholder di bawah sebelum submit/rekam video -->
+  <div id="creditsPanel">
+    <button class="closeBtn" id="closeCredits">✕</button>
+    <h3>Identitas Kelompok</h3>
+    <p style="margin:0 0 4px;">Kelompok: <b>4</b></p>
+    <p style="margin:0;">Anggota:</p>
+    <ol>
+      <li>Hardi Saputra — NIM 20231020075</li>
+      <li>Lorensia Jireh — NIM 20231020061</li>
+      <li>Ridho Ageng Prasetyo — NIM 20231020038</li>
+    </ol>
   </div>
 
   <!-- Panel penjelasan skala -- transparansi ke user, bukan janji akurasi palsu -->
@@ -366,7 +391,7 @@
   <div id="planetMenu"></div>
 
   <div id="instruction">
-    📷 Arahkan kamera ke marker <b>Hiro</b>. Cubit layar / tombol ± untuk zoom, atau pilih planet di menu bawah.
+    📷 Arahkan kamera ke marker <b>Tata Surya (custom)</b>. Cubit layar / tombol ± untuk zoom, atau pilih planet di menu bawah.
   </div>
 
   <div id="infoCard">
@@ -402,7 +427,7 @@
     renderer="logarithmicDepthBuffer: true; antialias: true;"
     arjs="sourceType: webcam; debugUIEnabled: false; detectionMode: mono_and_matrix; cameraParametersUrl: ./libs/data/camera_para.dat;"
   >
-    <a-marker type="pattern" url="./libs/data/patt.hiro" id="mainMarker"
+    <a-marker type="pattern" url="./libs/data/custom-marker.patt" id="mainMarker"
       emitevents="true">
 
       <a-entity id="systemRoot" scale="1 1 1">
@@ -732,6 +757,17 @@
       });
     });
 
+    // ===== PANEL INFO KELOMPOK =====
+    document.addEventListener('DOMContentLoaded', () => {
+      const panel = document.getElementById('creditsPanel');
+      document.getElementById('btnCredits').addEventListener('click', () => {
+        panel.style.display = panel.style.display === 'block' ? 'none' : 'block';
+      });
+      document.getElementById('closeCredits').addEventListener('click', () => {
+        panel.style.display = 'none';
+      });
+    });
+
     // ===== SABUK ASTEROID (di-generate, bukan hardcode manual) =====
     document.addEventListener('DOMContentLoaded', () => {
       const belt = document.getElementById('asteroidBelt');
@@ -974,7 +1010,7 @@
     // ----- 5) Escape untuk menutup modal/panel (aksesibilitas keyboard) -----
     document.addEventListener('keydown', (e) => {
       if (e.key !== 'Escape') return;
-      ['quizOverlay', 'infoCard', 'scalePanel'].forEach((id) => {
+      ['quizOverlay', 'infoCard', 'scalePanel', 'creditsPanel'].forEach((id) => {
         const el = document.getElementById(id);
         if (el && (el.style.display === 'block' || el.style.display === 'flex')) {
           el.style.display = 'none';
